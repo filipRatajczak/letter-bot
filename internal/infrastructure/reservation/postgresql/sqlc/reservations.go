@@ -258,6 +258,38 @@ func (t *ReservationRepository) DeletePresentMemberReservation(ctx context.Conte
 	return nil
 }
 
+func (t *ReservationRepository) SelectAllReservationsWithSpotsBySpotNames(ctx context.Context, guildId string, spotNames []string) ([]*reservation.ReservationWithSpot, error) {
+	res, err := t.q.SelectAllReservationsWithSpotsBySpotNames(ctx, SelectAllReservationsWithSpotsBySpotNamesParams{
+		GuildID:   guildId,
+		SpotNames: spotNames,
+	})
+	if err != nil {
+		return []*reservation.ReservationWithSpot{}, nil
+	}
+
+	reservations := make([]*reservation.ReservationWithSpot, len(res))
+	for i, row := range res {
+		reservations[i] = &reservation.ReservationWithSpot{
+			Spot: reservation.Spot{
+				ID:   row.WebSpot.ID,
+				Name: row.WebSpot.Name,
+			},
+			Reservation: reservation.Reservation{
+				ID:              row.WebReservation.ID,
+				Author:          row.WebReservation.Author,
+				AuthorDiscordID: row.WebReservation.AuthorDiscordID,
+				CreatedAt:       row.WebReservation.CreatedAt.Time,
+				StartAt:         row.WebReservation.StartAt.Time,
+				EndAt:           row.WebReservation.EndAt.Time,
+				SpotID:          row.WebReservation.SpotID,
+				GuildID:         row.WebReservation.GuildID,
+			},
+		}
+	}
+
+	return reservations, nil
+}
+
 // createOverbookedLeftovers creates up to two reservations from overbooked reservation leftovers.
 // If overbooked reservation starts before new reservation, a reservation is created from overbooked reservation start time till new reservation start time.
 // If overbooked reservation ends after new reservation, a reservation is created from new reservation end time till overbooked reservation end time.
