@@ -1,8 +1,10 @@
 package api
 
 import (
+	"fmt"
 	"context"
 	"strconv"
+	"spot-assistant/internal/core/dto/reservation"
 
 	"spot-assistant/internal/common/errors"
 	"spot-assistant/internal/core/dto/discord"
@@ -60,4 +62,23 @@ func (a *Application) OnPrivateSummary(request summary.PrivateSummaryRequest) er
 	}
 
 	return a.commSrv.SendPrivateSummary(request, summ)
+}
+
+func (a *Application) fetchUpcomingReservationsWithSpot(request summary.PrivateSummaryRequest) ([]*reservation.ReservationWithSpot, error) {
+	var res []*reservation.ReservationWithSpot
+	var err error
+
+	if request.SpotNames != nil {
+		res, err = a.db.SelectAllReservationsWithSpotsBySpotNames(context.Background(), strconv.FormatInt(request.GuildID, 10), request.SpotNames)
+		if err != nil {
+			return nil, fmt.Errorf("could not fetch upcoming reservations: %v", err)
+		}
+	} else {
+		res, err = a.db.SelectUpcomingReservationsWithSpot(context.Background(), strconv.FormatInt(request.GuildID, 10))
+		if err != nil {
+			return nil, fmt.Errorf("could not fetch upcoming reservations: %v", err)
+		}
+	}
+
+	return res, nil
 }

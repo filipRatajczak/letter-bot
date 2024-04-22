@@ -19,6 +19,11 @@ func (a *MockReservationRepo) Find(ctx context.Context, id int64) (*reservation.
 	return args.Get(0).(*reservation.Reservation), args.Error(1)
 }
 
+func (a *MockReservationRepo) SelectAllReservationsWithSpotsBySpotNames(ctx context.Context, guildId string, spotNames []string) ([]*reservation.ReservationWithSpot, error) {
+	args := a.Called(ctx, guildId, spotNames)
+	return args.Get(0).([]*reservation.ReservationWithSpot), args.Error(1)
+}
+
 func (a *MockReservationRepo) SelectUpcomingReservationsWithSpot(ctx context.Context, guildId string) ([]*reservation.ReservationWithSpot, error) {
 	args := a.Called(ctx, guildId)
 	return args.Get(0).([]*reservation.ReservationWithSpot), args.Error(1)
