@@ -86,6 +86,58 @@ func (q *Queries) DeleteReservation(ctx context.Context, id int64) error {
 	return err
 }
 
+const selectAllReservationsWithSpotsBySpotNames = `-- name: SelectAllReservationsWithSpotsBySpotNames :many
+select web_spot.id, web_spot.name, web_spot.created_at,
+       web_reservation.id, web_reservation.author, web_reservation.created_at, web_reservation.start_at, web_reservation.end_at, web_reservation.spot_id, web_reservation.guild_id, web_reservation.author_discord_id
+from web_reservation
+         inner join web_spot on web_reservation.spot_id = web_spot.id
+where end_at >= now()
+  AND guild_id = $1
+  AND web_spot.name = ANY($2::text[])
+`
+
+type SelectAllReservationsWithSpotsBySpotNamesParams struct {
+	GuildID   string
+	SpotNames []string
+}
+
+type SelectAllReservationsWithSpotsBySpotNamesRow struct {
+	WebSpot        WebSpot
+	WebReservation WebReservation
+}
+
+func (q *Queries) SelectAllReservationsWithSpotsBySpotNames(ctx context.Context, arg SelectAllReservationsWithSpotsBySpotNamesParams) ([]SelectAllReservationsWithSpotsBySpotNamesRow, error) {
+	rows, err := q.db.Query(ctx, selectAllReservationsWithSpotsBySpotNames, arg.GuildID, arg.SpotNames)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectAllReservationsWithSpotsBySpotNamesRow
+	for rows.Next() {
+		var i SelectAllReservationsWithSpotsBySpotNamesRow
+		if err := rows.Scan(
+			&i.WebSpot.ID,
+			&i.WebSpot.Name,
+			&i.WebSpot.CreatedAt,
+			&i.WebReservation.ID,
+			&i.WebReservation.Author,
+			&i.WebReservation.CreatedAt,
+			&i.WebReservation.StartAt,
+			&i.WebReservation.EndAt,
+			&i.WebReservation.SpotID,
+			&i.WebReservation.GuildID,
+			&i.WebReservation.AuthorDiscordID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const selectOverlappingReservations = `-- name: SelectOverlappingReservations :many
 SELECT web_reservation.id,
   web_reservation.author,
