@@ -254,3 +254,37 @@ func (b *Bot) PrivateSummary(i *discordgo.InteractionCreate) error {
 	_, err = b.mgr.SessionForGuild(gID).FollowupMessageCreate(i.Interaction, false, &discordgo.WebhookParams{Content: "Check your DM!"})
 	return err
 }
+
+func (b *Bot) PrivateSummaryWithSpotNamesAutocomplete(i *discordgo.InteractionCreate) error {
+	b.log.Info("PrivateSummaryWithSpotNamesAutocomplete")
+
+	gID, err := stringsHelper.StrToInt64(i.GuildID)
+	if err != nil {
+		return err
+	}
+
+	uID, err := stringsHelper.StrToInt64(i.Member.User.ID)
+	if err != nil {
+		return err
+	}
+
+	_, index := collections.PoorMansFind(i.ApplicationCommandData().Options,
+		func(o *discordgo.ApplicationCommandInteractionDataOption) bool {
+			return o.Focused
+		})
+	if index == -1 {
+		return fmt.Errorf("none of the options were selected for autocompletion")
+	}
+
+	err = b.eventHandler.OnPrivateSummary(b, summary.PrivateSummaryRequest{
+		GuildID:   gID,
+		UserID:    uID,
+		SpotNames: []string{},
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = b.mgr.SessionForGuild(gID).FollowupMessageCreate(i.Interaction, false, &discordgo.WebhookParams{Content: "Check your DM!"})
+	return err
+}
