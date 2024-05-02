@@ -1,6 +1,7 @@
 package api
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -74,14 +75,6 @@ func TestOnPrivateSummaryWhenRequestContainsSpotNames(t *testing.T) {
 		SpotNames: []string{"test-spot-name"},
 	}
 
-	var guild *discord.Guild = nil
-
-	dcDmChannel := &discord.Channel{ID: "test-channel-id", Name: "letter-summary"}
-
-	dcMember := &discord.Member{
-		ID: strconv.FormatInt(privateSummaryRequest.UserID, 10),
-	}
-
 	summary := &summary.Summary{
 		Title: "summary",
 	}
@@ -100,24 +93,27 @@ func TestOnPrivateSummaryWhenRequestContainsSpotNames(t *testing.T) {
 			},
 		},
 	}
-	mockBot := new(mocks.MockBot)
-	mockBot.On("OpenDM", dcMember).Return(dcDmChannel, nil)
-	mockBot.On("SendLetterMessage", guild, dcDmChannel, summary).Return(nil)
+	mockComm := new(mocks.MockCommunicationService)
+	mockComm.On("SendPrivateSummary", privateSummaryRequest, summary).Return(nil)
+
 	mockReservationRepo := new(mocks.MockReservationRepo)
 	mockReservationRepo.On("SelectAllReservationsWithSpotsBySpotNames", mocks.ContextMock, strconv.FormatInt(privateSummaryRequest.GuildID, 10), privateSummaryRequest.SpotNames).Return(reservations, nil)
 	mockSummarySrv := new(mocks.MockSummaryService)
 	mockSummarySrv.On("PrepareSummary", reservations).Return(summary, nil)
 	mockBookingSrv := new(mocks.MockBookingService)
-	adapter := NewApplication(mockReservationRepo, mockSummarySrv, mockBookingSrv)
+	adapter := NewApplication().
+		WithReservationRepository(mockReservationRepo).
+		WithSummaryService(mockSummarySrv).
+		WithBookingService(mockBookingSrv).
+		WithCommunicationService(mockComm)
 
 	// when
-	err := adapter.OnPrivateSummary(mockBot, privateSummaryRequest)
+	err := adapter.OnPrivateSummary(privateSummaryRequest)
 
 	// assert
 	assert.Nil(err)
 	mockReservationRepo.AssertExpectations(t)
 	mockSummarySrv.AssertExpectations(t)
-	mockBot.AssertExpectations(t)
 	mockBookingSrv.AssertExpectations(t)
 }
 
@@ -129,14 +125,6 @@ func TestOnPrivateSummaryWhenRequestDoesntContainsSpotNames(t *testing.T) {
 		GuildID: 34,
 	}
 
-	var guild *discord.Guild = nil
-
-	dcDmChannel := &discord.Channel{ID: "test-channel-id", Name: "letter-summary"}
-
-	dcMember := &discord.Member{
-		ID: strconv.FormatInt(privateSummaryRequest.UserID, 10),
-	}
-
 	summary := &summary.Summary{
 		Title: "summary",
 	}
@@ -155,23 +143,26 @@ func TestOnPrivateSummaryWhenRequestDoesntContainsSpotNames(t *testing.T) {
 			},
 		},
 	}
-	mockBot := new(mocks.MockBot)
-	mockBot.On("OpenDM", dcMember).Return(dcDmChannel, nil)
-	mockBot.On("SendLetterMessage", guild, dcDmChannel, summary).Return(nil)
+	mockComm := new(mocks.MockCommunicationService)
+	mockComm.On("SendPrivateSummary", privateSummaryRequest, summary).Return(nil)
+
 	mockReservationRepo := new(mocks.MockReservationRepo)
 	mockReservationRepo.On("SelectUpcomingReservationsWithSpot", mocks.ContextMock, strconv.FormatInt(privateSummaryRequest.GuildID, 10)).Return(reservations, nil)
 	mockSummarySrv := new(mocks.MockSummaryService)
 	mockSummarySrv.On("PrepareSummary", reservations).Return(summary, nil)
 	mockBookingSrv := new(mocks.MockBookingService)
-	adapter := NewApplication(mockReservationRepo, mockSummarySrv, mockBookingSrv)
+	adapter := NewApplication().
+		WithReservationRepository(mockReservationRepo).
+		WithSummaryService(mockSummarySrv).
+		WithBookingService(mockBookingSrv).
+		WithCommunicationService(mockComm)
 
 	// when
-	err := adapter.OnPrivateSummary(mockBot, privateSummaryRequest)
+	err := adapter.OnPrivateSummary(privateSummaryRequest)
 
 	// assert
 	assert.Nil(err)
 	mockReservationRepo.AssertExpectations(t)
 	mockSummarySrv.AssertExpectations(t)
-	mockBot.AssertExpectations(t)
 	mockBookingSrv.AssertExpectations(t)
 }

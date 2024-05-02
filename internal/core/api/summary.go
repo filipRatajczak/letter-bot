@@ -45,7 +45,7 @@ func (a *Application) OnPrivateSummary(request summary.PrivateSummaryRequest) er
 	log := a.log.With("user.ID", request.UserID, "guild.ID", request.GuildID)
 	log.Debug("OnPrivateSummary")
 
-	res, err := a.db.SelectUpcomingReservationsWithSpot(context.Background(), strconv.FormatInt(request.GuildID, 10))
+	res, err := a.fetchUpcomingReservationsWithSpot(request)
 	if err != nil {
 		return err
 	}
