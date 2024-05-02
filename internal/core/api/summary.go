@@ -1,10 +1,10 @@
 package api
 
 import (
-	"fmt"
 	"context"
-	"strconv"
+	"fmt"
 	"spot-assistant/internal/core/dto/reservation"
+	"strconv"
 
 	"spot-assistant/internal/common/errors"
 	"spot-assistant/internal/core/dto/discord"
