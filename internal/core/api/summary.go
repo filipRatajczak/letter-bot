@@ -43,7 +43,7 @@ func (a *Application) UpdateGuildSummaryAndLogError(guild *discord.Guild) {
 
 func (a *Application) OnPrivateSummary(request summary.PrivateSummaryRequest) error {
 	log := a.log.With("user.ID", request.UserID, "guild.ID", request.GuildID)
-	log.Debug("OnPrivateSummary")
+	log.Info("OnPrivateSummary")
 
 	res, err := a.fetchUpcomingReservationsWithSpot(request)
 	if err != nil {
@@ -52,7 +52,6 @@ func (a *Application) OnPrivateSummary(request summary.PrivateSummaryRequest) er
 
 	if len(res) == 0 {
 		log.Warn("no reservations to display in DM; skipping")
-
 		return nil
 	}
 

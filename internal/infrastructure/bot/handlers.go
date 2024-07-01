@@ -3,6 +3,7 @@ package bot
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -125,7 +126,7 @@ func (b *Bot) Book(i *discordgo.InteractionCreate) error {
 	}
 
 	bookLog.Info("followup message sending")
-	b.log.Info("asdfsafsadf")
+
 	_, err = dcSession.FollowupMessageCreate(interaction, false, &discordgo.WebhookParams{
 		Content: message,
 		AllowedMentions: &discordgo.MessageAllowedMentions{
@@ -231,7 +232,7 @@ func (b *Bot) UnbookAutocomplete(i *discordgo.InteractionCreate) error {
 }
 
 func (b *Bot) PrivateSummary(i *discordgo.InteractionCreate) error {
-	b.log.Debug("PrivateSummary")
+	b.log.Info("PrivateSummary")
 
 	gID, err := stringsHelper.StrToInt64(i.GuildID)
 	if err != nil {
@@ -243,48 +244,67 @@ func (b *Bot) PrivateSummary(i *discordgo.InteractionCreate) error {
 		return err
 	}
 
-	err = b.eventHandler.OnPrivateSummary(summary.PrivateSummaryRequest{
-		GuildID: gID,
-		UserID:  uID,
-	})
-	if err != nil {
-		return err
+	isSummaryWithoutRespawns := len(i.ApplicationCommandData().Options) < 1
+	if isSummaryWithoutRespawns {
+		err = b.eventHandler.OnPrivateSummary(summary.PrivateSummaryRequest{
+			GuildID: gID,
+			UserID:  uID,
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+
+		spotNames := strings.Split(i.ApplicationCommandData().Options[0].StringValue(), ", ")
+
+		err = b.eventHandler.OnPrivateSummary(summary.PrivateSummaryRequest{
+			GuildID:   gID,
+			UserID:    uID,
+			SpotNames: spotNames,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = b.mgr.SessionForGuild(gID).FollowupMessageCreate(i.Interaction, false, &discordgo.WebhookParams{Content: "Check your DM!"})
 	return err
+
 }
 
 func (b *Bot) PrivateSummaryWithSpotNamesAutocomplete(i *discordgo.InteractionCreate) error {
+
 	b.log.Info("PrivateSummaryWithSpotNamesAutocomplete")
 
-	gID, err := stringsHelper.StrToInt64(i.GuildID)
-	if err != nil {
-		return err
-	}
-
-	uID, err := stringsHelper.StrToInt64(i.Member.User.ID)
-	if err != nil {
-		return err
-	}
-
-	_, index := collections.PoorMansFind(i.ApplicationCommandData().Options,
+	userInput, index := collections.PoorMansFind(i.ApplicationCommandData().Options,
 		func(o *discordgo.ApplicationCommandInteractionDataOption) bool {
 			return o.Focused
 		})
 	if index == -1 {
-		return fmt.Errorf("none of the options were selected for autocompletion")
+		return errors.New("none of the options were selected for autocompletion")
 	}
 
-	err = b.eventHandler.OnPrivateSummary(b, summary.PrivateSummaryRequest{
-		GuildID:   gID,
-		UserID:    uID,
-		SpotNames: []string{},
+	lastEntry := strings.Split(userInput.StringValue(), ",")[len(strings.Split(userInput.StringValue(), ","))-1]
+
+	responseFromAutocomplete, err := b.eventHandler.OnBookAutocomplete(book.BookAutocompleteRequest{
+		Field: book.BookAutocompleteFocus(index),
+		Value: strings.TrimLeft(lastEntry, " "),
 	})
 	if err != nil {
 		return err
 	}
 
-	_, err = b.mgr.SessionForGuild(gID).FollowupMessageCreate(i.Interaction, false, &discordgo.WebhookParams{Content: "Check your DM!"})
-	return err
+	lastCommaIndex := strings.LastIndex(userInput.StringValue(), ",")
+	if lastCommaIndex > 0 {
+		for i := 0; i < len(responseFromAutocomplete); i++ {
+			responseFromAutocomplete[i] = userInput.StringValue()[:lastCommaIndex] + ", " + responseFromAutocomplete[i]
+		}
+	}
+
+	responseData := &discordgo.InteractionResponseData{
+		Choices: MapStringArrToChoice(responseFromAutocomplete),
+	}
+
+	return b.interactionRespond(i, responseData, discordgo.InteractionApplicationCommandAutocompleteResult)
+
 }
